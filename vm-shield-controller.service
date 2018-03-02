@@ -1,0 +1,11 @@
+[Unit]
+Description=CPU shield for VM vCPUS
+
+[Service]
+ExecStart=/root/vm-shield-controller/main.py
+Restart=on-failure
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
