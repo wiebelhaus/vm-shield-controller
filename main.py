@@ -1,5 +1,6 @@
 #!/usr/bin/python -u
 import os
+import io
 import subprocess
 
 import libvirt
@@ -7,10 +8,11 @@ import lxc
 
 # Globals
 vm_name = 'virt-windows'
-vm_shieled = False
 vm_cpus = '4-7'
 sys_cpus = '0-3'
+lxc_cpus = '0-3'
 all_cpus = '0-7'
+cpuset_mount = '/sys/fs/cgroup/cpuset/' # cpuset fs mount location, grep /proc/mounts to determine
 null_fd = open(os.devnull,'w')
 
 def main():
@@ -82,16 +84,29 @@ def cset_unshield():
 def lxc_cgroup_shield():
     for container in lxc.list_containers(as_object=True):
         if container.running:
-            print("lxc_cgroup_shield(): Restricting CPUs for " + container.name + " to " + sys_cpus)
-            container.set_config_item("lxc.cgroup.cpuset.cpus", sys_cpus)
+            print("lxc_cgroup_shield(): Setting CPUs for " + container.name + " to " + lxc_cpus)
+            
+            f = io.open(cpuset_mount + "lxc/" + container.name + "/cpuset.cpus",'w', encoding="ascii")
+            f.write(lxc_cpus)
+            f.close
+
+            # Old method below, new method, above, manipulates cpuset directly
+            #subprocess.call(
+            #   "lxc-cgroup -n " + container.name + " cpuset.cpus " + sys_cpus, 
+            #   shell=True, 
+            #   stdout=null_fd)
 
 def lxc_cgroup_unshield():
     for container in lxc.list_containers(as_object=True):
         if container.running:
             print("lxc_cgroup_unshield(): Unrestricting CPUs for " + container.name + " to " + all_cpus)
-            container.set_config_item("lxc.cgroup.cpuset.cpus", all_cpus)
+            
+            f = io.open(cpuset_mount + "lxc/" + container.name + "/cpuset.cpus",'w', encoding="ascii")
+            f.write(all_cpus)
+            f.close
 
-# virDomainEventType is emitted during domain lifecycles (see libvirt.h)
+# These are only here for reference, I will eventually remove.
+# virDomainEventType emitted during domain lifecycles (see libvirt.h)
 VIR_DOMAIN_EVENT_MAPPING = {
     0: "VIR_DOMAIN_EVENT_DEFINED",
     1: "VIR_DOMAIN_EVENT_UNDEFINED",
