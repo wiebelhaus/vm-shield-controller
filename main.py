@@ -8,9 +8,9 @@ import lxc
 
 # Globals
 vm_name = 'virt-windows'
-vm_cpus = '4-7'
-sys_cpus = '0-3'
-lxc_cpus = '0-3'
+vm_cpus = '2-7'
+sys_cpus = '0-1'
+lxc_cpus = '0-1'
 all_cpus = '0-7'
 cpuset_mount = '/sys/fs/cgroup/cpuset/' # cpuset fs mount location, grep /proc/mounts to determine
 null_fd = open(os.devnull,'w')
@@ -60,7 +60,7 @@ def shield_vm():
     else:
         print("shield_vm(): cset_shield was unsuccessful.")
 
-    lxc_cgroup_shield()
+    lxc_cgroup_set_cpuset(lxc_cpus)
     return
 
 def unshield_vm():
@@ -69,7 +69,7 @@ def unshield_vm():
     else:
         print("unshield_vm(): cset_unshield was unsuccessful.")
 
-    lxc_cgroup_unshield()
+    lxc_cgroup_set_cpuset(all_cpus)
     return
 
 def cset_shield():
@@ -81,29 +81,17 @@ def cset_shield():
 def cset_unshield():
     return subprocess.call("cset shield --reset", shell=True, stdout=null_fd)
 
-def lxc_cgroup_shield():
+def lxc_cgroup_set_cpuset(cpus):
     for container in lxc.list_containers(as_object=True):
         if container.running:
-            print("lxc_cgroup_shield(): Setting CPUs for " + container.name + " to " + lxc_cpus)
-            
-            f = io.open(cpuset_mount + "lxc/" + container.name + "/cpuset.cpus",'w', encoding="ascii")
-            f.write(lxc_cpus)
-            f.close
-
-            # Old method below, new method, above, manipulates cpuset directly
-            #subprocess.call(
-            #   "lxc-cgroup -n " + container.name + " cpuset.cpus " + sys_cpus, 
-            #   shell=True, 
-            #   stdout=null_fd)
-
-def lxc_cgroup_unshield():
-    for container in lxc.list_containers(as_object=True):
-        if container.running:
-            print("lxc_cgroup_unshield(): Unrestricting CPUs for " + container.name + " to " + all_cpus)
-            
-            f = io.open(cpuset_mount + "lxc/" + container.name + "/cpuset.cpus",'w', encoding="ascii")
-            f.write(all_cpus)
-            f.close
+            print("lxc_cgroup_set_cpus(): Setting CPUs for " + container.name + " to " + cpus)
+           
+            try:
+                f = io.open(cpuset_mount + "lxc/" + container.name + "/cpuset.cpus",'w', encoding="ascii")
+                f.write(cpus)
+                f.close
+            except IOError as e:
+                print("I/O error(" + e.errno + "): " + e.strerror)
 
 # These are only here for reference, I will eventually remove.
 # virDomainEventType emitted during domain lifecycles (see libvirt.h)
