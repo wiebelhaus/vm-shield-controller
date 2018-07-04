@@ -8,9 +8,9 @@ import lxc
 
 # Globals
 vm_name = 'virt-windows'
-vm_cpus = '2-7'
-sys_cpus = '0-1'
-lxc_cpus = '0-1'
+vm_cpus = '4-7'
+sys_cpus = '0-3'
+lxc_cpus = '0-3'
 all_cpus = '0-7'
 cpuset_mount = '/sys/fs/cgroup/cpuset/' # cpuset fs mount location, grep /proc/mounts to determine
 null_fd = open(os.devnull,'w')
@@ -85,13 +85,20 @@ def lxc_cgroup_set_cpuset(cpus):
     for container in lxc.list_containers(as_object=True):
         if container.running:
             print("lxc_cgroup_set_cpus(): Setting CPUs for " + container.name + " to " + cpus)
-           
+          
+            exception_occured = False
+
             try:
                 f = io.open(cpuset_mount + "lxc/" + container.name + "/cpuset.cpus",'w', encoding="ascii")
+            except IOError as e:
+                exception_occured = True
+                print("I/O error occured")
+                #print("I/O error(" + e.errno + "): " + e.strerror)
+
+            # No point in doing the following if an I/O occured in the prior try/catch
+            if exception_occured != True:
                 f.write(cpus)
                 f.close
-            except IOError as e:
-                print("I/O error(" + e.errno + "): " + e.strerror)
 
 # These are only here for reference, I will eventually remove.
 # virDomainEventType emitted during domain lifecycles (see libvirt.h)
